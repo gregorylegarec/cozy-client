@@ -66,4 +66,8 @@ export default class HasManyFiles extends HasMany {
     const queryAll = client.find(assoc.doctype)
     return queryAll.referencedBy(document)
   }
+
+  getMutationsAfterCreate(referencedDocs) {
+    return this.insertDocuments(referencedDocs)
+  }
 }

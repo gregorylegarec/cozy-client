@@ -226,12 +226,16 @@ export default class CozyClient {
       saveMutation,
       response => {
         const document = this.hydrateDocument(response.data)
-        return Object.keys(relationships).map(name => {
-          const val = relationships[name]
-          return Array.isArray(val)
-            ? document[name].insertDocuments(val)
-            : document[name].setDocument(val)
-        })
+        console.debug('getDocumentSavePlan.response', { document })
+        return Object.keys(relationships)
+          .map(name => {
+            const relationshipValue = relationships[name]
+            const relationship = document[name]
+            if (typeof relationship.getMutationsAfterCreate === 'function') {
+              return relationship.getMutationsAfterCreate(relationshipValue)
+            }
+          })
+          .filter(Boolean)
       }
     ]
   }
