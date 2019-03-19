@@ -1,4 +1,4 @@
-import { normalizeDoc } from './DocumentCollection'
+import DocumentCollection, { normalizeDoc } from './DocumentCollection'
 import { uri } from './utils'
 
 export const APPS_DOCTYPE = 'io.cozy.apps'
@@ -38,8 +38,8 @@ class AppCollection {
     }
   }
 
-  async find() {
-    throw new Error('find() method is not yet implemented')
+  find(...args) {
+    return new DocumentCollection(this.doctype, this.stackClient).find(...args)
   }
 
   async get() {
