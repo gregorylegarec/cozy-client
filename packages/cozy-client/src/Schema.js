@@ -16,6 +16,7 @@ import { resolveClass as resolveAssociationClass } from './associations'
  * @private
  */
 const normalizeDoctypeSchema = doctypeSchema => {
+  console.debug({ doctypeSchema })
   const relationships = mapValues(
     doctypeSchema.relationships || {},
     (v, k) => ({
@@ -39,7 +40,9 @@ const ensureCanBeAdded = (newSchemas, existingSchemas) => {
   const sameNames = intersectionBy(newSchemas, existingSchemas, x => x.name)
   assert(
     sameNames.length === 0,
-    `Duplicated names in schemas being added: ${sameNames.join(', ')}`
+    `Duplicated names in schemas being added: ${sameNames
+      .map(x => x.name)
+      .join(', ')}`
   )
 
   const sameDoctypes = intersectionBy(
@@ -49,7 +52,9 @@ const ensureCanBeAdded = (newSchemas, existingSchemas) => {
   )
   assert(
     sameDoctypes.length === 0,
-    `Duplicated doctypes in schemas being added: ${sameDoctypes.join(', ')}`
+    `Duplicated doctypes in schemas being added: ${sameDoctypes
+      .map(x => x.name)
+      .join(', ')}`
   )
 }
 
@@ -82,6 +87,7 @@ class Schema {
   }
 
   add(schemaDefinition = {}) {
+    console.debug({ schemaDefinition })
     const normalizedSchemaDefinition = mapValues(
       schemaDefinition,
       (obj, name) => ({

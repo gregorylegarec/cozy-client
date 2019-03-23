@@ -206,6 +206,10 @@ class Association {
   static query() {
     throw new Error('A custom relationship must define its query() function')
   }
+
+  static isForced() {
+    return false
+  }
 }
 
 export default Association

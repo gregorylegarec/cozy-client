@@ -8,7 +8,9 @@ const TRIGGERS_DOCTYPE = 'io.cozy.triggers'
  */
 class HasManyTriggers extends HasMany {
   get data() {
-    return super.data.filter(({ slug }) => slug === this.target.slug)
+    return super.data.filter(
+      ({ message }) => message.konnector === this.target.slug
+    )
   }
 
   /**
@@ -18,6 +20,10 @@ class HasManyTriggers extends HasMany {
    */
   static query(doc, client) {
     return client.all(TRIGGERS_DOCTYPE).where({ worker: 'konnector' })
+  }
+
+  static isForced() {
+    return true
   }
 }
 

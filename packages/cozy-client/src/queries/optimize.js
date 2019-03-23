@@ -1,36 +1,11 @@
-import mapValues from 'lodash/mapValues'
 import groupBy from 'lodash/groupBy'
-import flatten from 'lodash/flatten'
 import isEqual from 'lodash/isEqual'
+import flatten from 'lodash/flatten'
 import uniq from 'lodash/uniq'
 import uniqWith from 'lodash/uniqWith'
 import { QueryDefinition } from './dsl'
 
 const isIdQuery = query => query.id || query.ids
-
-/**
- * Optimize queries on a single doctype
- *
- * @param  {QueryDefinition[]} queries - Queries of a same doctype
- * @return {QueryDefinition[]} Optimized queries
- * @private
- */
-const optimizeDoctypeQueries = queries => {
-  const { idQueries = [], others = [] } = groupBy(
-    queries,
-    q => (isIdQuery(q) ? 'idQueries' : 'others')
-  )
-  const groupedIdQueries =
-    idQueries.length > 0
-      ? new QueryDefinition({
-          doctype: queries[0].doctype,
-          ids: uniq(flatten(idQueries.map(q => q.id || q.ids)))
-        })
-      : []
-
-  // Deduplicate before concataining
-  return uniqWith(others, isEqual).concat(groupedIdQueries)
-}
 
 /**
  * Reduce the number of queries used to fetch documents.
@@ -43,8 +18,32 @@ const optimizeDoctypeQueries = queries => {
  * @private
  */
 const optimizeQueries = queries => {
+  const optimizedQueryMap = new Map()
   const byDoctype = groupBy(queries, q => q.doctype)
-  return flatten(Object.values(mapValues(byDoctype, optimizeDoctypeQueries)))
+
+  for (const queries of Object.values(byDoctype)) {
+    const { idQueries = [], others = [] } = groupBy(
+      queries,
+      q => (isIdQuery(q) ? 'idQueries' : 'others')
+    )
+
+    if (idQueries.length > 0) {
+      const groupedIdQueries = new QueryDefinition({
+        doctype: queries[0].doctype,
+        ids: uniq(flatten(idQueries.map(q => q.id || q.ids)))
+      })
+      optimizedQueryMap.set(groupedIdQueries, idQueries)
+    }
+
+    // Deduplicate before concataining
+    const deduplicatedQueries = uniqWith(others, isEqual)
+
+    for (const query of deduplicatedQueries) {
+      optimizedQueryMap.set(query, others.filter(q => isEqual(query, q)))
+    }
+  }
+
+  return optimizedQueryMap
 }
 
 export default optimizeQueries

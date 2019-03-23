@@ -24,6 +24,7 @@ import {
   getCollectionFromState,
   getDocumentFromState
 } from './store'
+import RelationshipsFetcher from './RelationshipsFetcher'
 import Schema from './Schema'
 import { chain } from './CozyLink'
 import ObservableQuery from './ObservableQuery'
@@ -352,6 +353,7 @@ class CozyClient {
     this.ensureQueryExists(queryId, queryDefinition)
     try {
       const response = await this.requestQuery(queryDefinition)
+      console.debug('query', { response })
       this.dispatch(
         receiveQueryResult(queryId, response, {
           update
@@ -415,67 +417,12 @@ class CozyClient {
    * Queries are optimized before being sent.
    */
   async fetchRelationships(response, relationshipsByName) {
-    const isSingleDoc = !Array.isArray(response.data)
-    if (!isSingleDoc && response.data.length === 0) {
-      return response
-    }
-    const responseDocs = isSingleDoc ? [response.data] : response.data
-
-    const queryDefToDocIdAndRel = new Map()
-    const documents = []
-    const definitions = []
-
-    responseDocs.forEach(doc => {
-      return forEach(relationshipsByName, (relationship, relName) => {
-        const queryDef = relationship.type.query(doc, this, relationship)
-        const docId = doc._id
-
-        // Used to reattach responses into the relationships attribute of
-        // each document
-        queryDefToDocIdAndRel.set(queryDef, [docId, relName])
-
-        // Relationships can yield "queries" that are already resolved documents.
-        // These do not need to go through the usual link request mechanism.
-        if (queryDef instanceof QueryDefinition) {
-          definitions.push(queryDef)
-        } else {
-          documents.push(queryDef)
-        }
-      })
-    })
-
-    // Definitions can be in optimized/regrouped in case of HasMany relationships.
-    const optimizedDefinitions = optimizeQueryDefinitions(definitions)
-    const responses = await Promise.all(
-      optimizedDefinitions.map(req => this.chain.request(req))
+    const relationshipsFetcher = new RelationshipsFetcher(
+      this,
+      response,
+      relationshipsByName
     )
-
-    // "Included" documents will be stored in the `documents` store
-    const uniqueDocuments = uniqBy(flatten(documents), '_id')
-    const included = flatten(responses.map(r => r.included || r.data))
-      .concat(uniqueDocuments)
-      .filter(Boolean)
-
-    // Some relationships have the relationship data on the other side of the
-    // relationship (ex: io.cozy.photos.albums do not have photo inclusion information,
-    // it is on the io.cozy.files side).
-    // Here we take the data received from the relationship queries, and group
-    // it so that we can fill the `relationships` attribute of each doc before
-    // storing the document. This makes the data easier to manipulate for the front-end.
-    const relationshipsByDocId = {}
-    for (const [def, resp] of zip(optimizedDefinitions, responses)) {
-      const docIdAndRel = queryDefToDocIdAndRel.get(def)
-      if (docIdAndRel) {
-        const [docId, relName] = docIdAndRel
-        relationshipsByDocId[docId] = relationshipsByDocId[docId] || {}
-        relationshipsByDocId[docId][relName] = responseToRelationship(resp)
-      }
-    }
-
-    return {
-      ...attachRelationships(response, relationshipsByDocId),
-      included
-    }
+    return await relationshipsFetcher.fetch()
   }
 
   async requestMutation(definition) {
@@ -737,6 +684,7 @@ class CozyClient {
    * @param data {Object} { doctype: [data] }
    */
   setData(data) {
+    console.debug('setData', { data })
     this.ensureStore()
     Object.entries(data).forEach(([doctype, data]) => {
       this.dispatch(receiveQueryResult(null, { data }))
