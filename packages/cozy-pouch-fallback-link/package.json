@@ -1,0 +1,12 @@
+{
+  "name": "cozy-pouch-fallback-link",
+  "version": "1.0.0",
+  "description": "CozyPouchFallbackLink provides a naive way to synchronize Cozy data which cannot be synchronized by PouchDB, like apps, konnectors, triggers and jobs.\"",
+  "main": "dist/index.js",
+  "repository": "https://github.com/cozy/cozy-client/",
+  "license": "MIT",
+  "dependencies": {
+    "cozy-client": "^6.20.0",
+    "lodash": "^4.17.11"
+  }
+}
